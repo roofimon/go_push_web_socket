@@ -1,12 +1,12 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"time"
-	"net/http"
-	"gopkg.in/redis.v3"
 	"code.google.com/p/go.net/websocket"
+	"fmt"
+	"gopkg.in/redis.v3"
+	"log"
+	"net/http"
+	"time"
 )
 
 var channel chan string
@@ -30,12 +30,12 @@ func Routine(channel chan string) {
 }
 
 func Echo(ws *websocket.Conn) {
-    var err error
-    for {
+	var err error
+	for {
 		//pull data from channel and process
-		token := <- channel
-        msg := "Received:  " + token
-        fmt.Println("Sending to client: " + msg)
+		token := <-channel
+		msg := "Received:  " + token
+		fmt.Println("Sending to client: " + msg)
 		//push data back to cliend via web socket
 		if token != "" {
 			if err = websocket.Message.Send(ws, msg); err != nil {
@@ -43,7 +43,7 @@ func Echo(ws *websocket.Conn) {
 				break
 			}
 		}
-    }
+	}
 }
 
 func main() {
@@ -51,14 +51,14 @@ func main() {
 		Addr:     "localhost:6379",
 		Password: "", // no password set
 		DB:       0,  // use default DB
-		})
+	})
 	//create channel that can contains string message
 	channel = make(chan string)
 	//spawn thread and hooked it with channel
 	go Routine(channel)
-    http.Handle("/", websocket.Handler(Echo))
+	http.Handle("/", websocket.Handler(Echo))
 
-    if err := http.ListenAndServe(":1234", nil); err != nil {
-        log.Fatal("ListenAndServe:", err)
-    }
+	if err := http.ListenAndServe(":1234", nil); err != nil {
+		log.Fatal("ListenAndServe:", err)
+	}
 }
