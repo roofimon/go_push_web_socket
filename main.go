@@ -5,17 +5,27 @@ import (
 	"log"
 	"time"
 	"net/http"
+	"gopkg.in/redis.v3"
 	"code.google.com/p/go.net/websocket"
 )
 
 var channel chan string
+var client *redis.Client
 
 func Routine(channel chan string) {
+	pubsub, err := client.Subscribe("mychannel")
+	if err != nil {
+		panic(err)
+	}
+	defer pubsub.Close()
 	for {
-		time.Sleep(2000 * time.Millisecond)
-		t := time.Now()
-		//send data back to main process via channel
-		channel <- t.Format("20060102150405")
+		msgi, _ := pubsub.ReceiveTimeout(2000 * time.Millisecond)
+		switch msg := msgi.(type) {
+		case *redis.Message:
+			channel <- msg.Payload
+		default:
+			fmt.Println("Do nothing")
+		}
 	}
 }
 
@@ -27,14 +37,21 @@ func Echo(ws *websocket.Conn) {
         msg := "Received:  " + token
         fmt.Println("Sending to client: " + msg)
 		//push data back to cliend via web socket
-        if err = websocket.Message.Send(ws, msg); err != nil {
-            fmt.Println("Can't send")
-            break
-        }
+		if token != "" {
+			if err = websocket.Message.Send(ws, msg); err != nil {
+				fmt.Println("Can't send")
+				break
+			}
+		}
     }
 }
 
 func main() {
+	client = redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+		})
 	//create channel that can contains string message
 	channel = make(chan string)
 	//spawn thread and hooked it with channel
